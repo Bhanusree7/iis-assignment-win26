@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+<robot name="domestic_assistant" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:include filename="base.xacro"/>
+  <xacro:include filename="arm.xacro"/>
+  <xacro:include filename="gripper.xacro"/>
+
+  <!-- ===== environment parameters (from the task sheet) ===== -->
+  <xacro:property name="counter_height" value="0.90"/>
+  <xacro:property name="shelf_height"   value="0.40"/>   <!-- lowest door shelf (0.4 .. 1.2 m) -->
+  <xacro:property name="carton_w" value="0.10"/>
+  <xacro:property name="carton_h" value="0.20"/>
+  <xacro:property name="mug_r"    value="0.08"/>
+  <xacro:property name="mug_h"    value="0.12"/>
+  <xacro:property name="reach_dist" value="0.55"/>       <!-- target distance from robot origin -->
+
+  <!-- generic static box helper -->
+  <xacro:macro name="static_box" params="name parent sx sy sz x y z rgba">
+    <link name="${name}">
+      <visual><geometry><box size="${sx} ${sy} ${sz}"/></geometry>
+        <material name="${name}_mat"><color rgba="${rgba}"/></material></visual>
+      <collision><geometry><box size="${sx} ${sy} ${sz}"/></geometry></collision>
+      <inertial><mass value="1.0"/>
+        <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/></inertial>
+    </link>
+    <joint name="${name}_joint" type="fixed">
+      <parent link="${parent}"/><child link="${name}"/>
+      <origin xyz="${x} ${y} ${z}"/>
+    </joint>
+  </xacro:macro>
+
+  <link name="world"/>
+
+  <!-- ===== robot assembly ===== -->
+  <xacro:base parent="world"/>
+  <xacro:arm parent="base_link" mount_z="${base_height}"/>
+  <xacro:gripper parent="link2" attach_x="${link2_length}"/>
+
+  <!-- ===== kitchen: fridge door shelf on +x, counter on +y ===== -->
+  <xacro:static_box name="fridge_door_shelf" parent="world" sx="0.30" sy="0.60" sz="0.02"
+                    x="${reach_dist+0.10}" y="0" z="${shelf_height-0.01}" rgba="0.9 0.9 0.95 1"/>
+  <xacro:static_box name="milk_carton" parent="world" sx="${carton_w}" sy="${carton_w}" sz="${carton_h}"
+                    x="${reach_dist}" y="0" z="${shelf_height+carton_h/2}" rgba="1 1 1 1"/>
+
+  <xacro:static_box name="counter" parent="world" sx="0.60" sy="0.60" sz="${counter_height}"
+                    x="0" y="${reach_dist+0.30}" z="${counter_height/2}" rgba="0.8 0.7 0.5 1"/>
+  <link name="eva_mug">
+    <visual><origin xyz="0 0 ${mug_h/2}"/><geometry><cylinder radius="${mug_r}" length="${mug_h}"/></geometry>
+      <material name="mug_mat"><color rgba="0.9 0.2 0.2 1"/></material></visual>
+    <collision><origin xyz="0 0 ${mug_h/2}"/><geometry><cylinder radius="${mug_r}" length="${mug_h}"/></geometry></collision>
+    <inertial><origin xyz="0 0 ${mug_h/2}"/><mass value="0.3"/>
+      <inertia ixx="1e-3" ixy="0" ixz="0" iyy="1e-3" iyz="0" izz="1e-3"/></inertial>
+  </link>
+  <joint name="eva_mug_joint" type="fixed">
+    <parent link="counter"/><child link="eva_mug"/>
+    <origin xyz="0 ${-0.30+0.08} ${counter_height/2}"/>
+  </joint>
+</robot>

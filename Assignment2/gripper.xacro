@@ -1,0 +1,80 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <!-- 2-finger parallel gripper. gripper_span = max opening between the finger
+       inner faces; must be > 0.1 m (carton width). -->
+  <xacro:property name="gripper_span"  value="0.14"/>
+  <xacro:property name="closed_gap"    value="0.02"/>
+  <xacro:property name="finger_length" value="0.10"/>
+  <xacro:property name="finger_thick"  value="0.012"/>
+  <xacro:property name="finger_height" value="0.04"/>
+  <xacro:property name="finger_travel" value="${(gripper_span-closed_gap)/2}"/>
+  <xacro:property name="palm_width"    value="${gripper_span+2*finger_thick}"/>
+
+  <xacro:macro name="finger" params="side y_dir">
+    <link name="finger_${side}">
+      <visual>
+        <origin xyz="${finger_length/2} 0 0"/>
+        <geometry><box size="${finger_length} ${finger_thick} ${finger_height}"/></geometry>
+        <material name="finger_${side}_mat"><color rgba="0.9 0.8 0.1 1"/></material>
+      </visual>
+      <collision>
+        <origin xyz="${finger_length/2} 0 0"/>
+        <geometry><box size="${finger_length} ${finger_thick} ${finger_height}"/></geometry>
+      </collision>
+      <inertial><origin xyz="${finger_length/2} 0 0"/><mass value="0.05"/>
+        <inertia ixx="1e-5" ixy="0" ixz="0" iyy="1e-5" iyz="0" izz="1e-5"/></inertial>
+    </link>
+    <joint name="finger_${side}_joint" type="prismatic">
+      <parent link="palm"/><child link="finger_${side}"/>
+      <!-- fingers start closed (gap = closed_gap) and move outwards -->
+      <origin xyz="0.03 ${y_dir*(closed_gap/2+finger_thick/2)} 0"/>
+      <axis xyz="0 ${y_dir} 0"/>
+      <limit lower="0" upper="${finger_travel}" effort="20" velocity="0.1"/>
+      <dynamics damping="0.5" friction="0.2"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:macro name="gripper" params="parent attach_x">
+    <!-- wrist roll: rotates the whole gripper about the forearm axis (x) to tilt the carton for pouring -->
+    <link name="wrist_link">
+      <visual><origin xyz="0.02 0 0" rpy="0 ${pi/2} 0"/>
+        <geometry><cylinder radius="0.03" length="0.04"/></geometry>
+        <material name="wrist_mat"><color rgba="0.8 0.4 0.1 1"/></material></visual>
+      <collision><origin xyz="0.02 0 0" rpy="0 ${pi/2} 0"/>
+        <geometry><cylinder radius="0.03" length="0.04"/></geometry></collision>
+      <inertial><origin xyz="0.02 0 0"/><mass value="0.3"/>
+        <inertia ixx="1e-4" ixy="0" ixz="0" iyy="1e-4" iyz="0" izz="1e-4"/></inertial>
+    </link>
+    <joint name="wrist_roll_joint" type="revolute">
+      <parent link="${parent}"/><child link="wrist_link"/>
+      <origin xyz="${attach_x} 0 0"/>
+      <axis xyz="1 0 0"/>
+      <limit lower="${-pi}" upper="${pi}" effort="10" velocity="3.0"/>
+      <dynamics damping="0.1" friction="0.05"/>
+    </joint>
+
+    <link name="palm">
+      <visual><origin xyz="0.015 0 0"/>
+        <geometry><box size="0.03 ${palm_width} ${finger_height}"/></geometry>
+        <material name="palm_mat"><color rgba="0.3 0.3 0.3 1"/></material></visual>
+      <collision><origin xyz="0.015 0 0"/>
+        <geometry><box size="0.03 ${palm_width} ${finger_height}"/></geometry></collision>
+      <inertial><origin xyz="0.015 0 0"/><mass value="0.3"/>
+        <inertia ixx="1e-4" ixy="0" ixz="0" iyy="1e-4" iyz="0" izz="1e-4"/></inertial>
+    </link>
+    <joint name="palm_joint" type="fixed">
+      <parent link="wrist_link"/><child link="palm"/>
+      <origin xyz="0.04 0 0"/>
+    </joint>
+
+    <xacro:finger side="left"  y_dir="1"/>
+    <xacro:finger side="right" y_dir="-1"/>
+
+    <!-- tool centre point between the fingertips' mid-height -->
+    <link name="tool_frame"/>
+    <joint name="tool_joint" type="fixed">
+      <parent link="palm"/><child link="tool_frame"/>
+      <origin xyz="${0.03+finger_length/2} 0 0"/>
+    </joint>
+  </xacro:macro>
+</robot>

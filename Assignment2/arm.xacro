@@ -1,0 +1,74 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <!-- 3-DOF arm: prismatic lift (torso) + revolute shoulder + revolute elbow.
+       Shoulder/elbow axes are -y, so a positive angle raises the link. -->
+  <xacro:property name="link1_length" value="0.35"/>
+  <xacro:property name="link2_length" value="0.30"/>
+  <xacro:property name="link_width"   value="0.06"/>
+  <xacro:property name="lift_stroke"  value="0.40"/>
+  <xacro:property name="column_height" value="0.10"/>
+  <xacro:property name="link_mass"    value="1.5"/>
+
+  <xacro:macro name="box_link" params="name length mass rgba">
+    <link name="${name}">
+      <visual>
+        <origin xyz="${length/2} 0 0"/>
+        <geometry><box size="${length} ${link_width} ${link_width}"/></geometry>
+        <material name="${name}_mat"><color rgba="${rgba}"/></material>
+      </visual>
+      <collision>
+        <origin xyz="${length/2} 0 0"/>
+        <geometry><box size="${length} ${link_width} ${link_width}"/></geometry>
+      </collision>
+      <inertial>
+        <origin xyz="${length/2} 0 0"/>
+        <mass value="${mass}"/>
+        <inertia ixx="${mass*2*link_width*link_width/12}" ixy="0" ixz="0"
+                 iyy="${mass*(length*length+link_width*link_width)/12}" iyz="0"
+                 izz="${mass*(length*length+link_width*link_width)/12}"/>
+      </inertial>
+    </link>
+  </xacro:macro>
+
+  <xacro:macro name="arm" params="parent mount_z">
+    <!-- lift column: slides along z; origin of the column is at the top of the base -->
+    <link name="lift_link">
+      <visual>
+        <origin xyz="0 0 ${column_height/2}"/>
+        <geometry><box size="0.08 0.08 ${column_height}"/></geometry>
+        <material name="lift_mat"><color rgba="0.7 0.7 0.7 1"/></material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 ${column_height/2}"/>
+        <geometry><box size="0.08 0.08 ${column_height}"/></geometry>
+      </collision>
+      <inertial><origin xyz="0 0 ${column_height/2}"/><mass value="3.0"/>
+        <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.005"/></inertial>
+    </link>
+    <joint name="lift_joint" type="prismatic">
+      <parent link="${parent}"/><child link="lift_link"/>
+      <origin xyz="0 0 ${mount_z}"/>
+      <axis xyz="0 0 1"/>
+      <limit lower="0" upper="${lift_stroke}" effort="300" velocity="0.2"/>
+      <dynamics damping="1.0" friction="0.5"/>
+    </joint>
+
+    <xacro:box_link name="link1" length="${link1_length}" mass="${link_mass}" rgba="0.1 0.4 0.8 1"/>
+    <joint name="shoulder_joint" type="revolute">
+      <parent link="lift_link"/><child link="link1"/>
+      <origin xyz="0 0 ${column_height}"/>
+      <axis xyz="0 -1 0"/>
+      <limit lower="${-pi/2}" upper="${pi/2}" effort="80" velocity="1.5"/>
+      <dynamics damping="0.5" friction="0.1"/>
+    </joint>
+
+    <xacro:box_link name="link2" length="${link2_length}" mass="${link_mass}" rgba="0.1 0.6 0.9 1"/>
+    <joint name="elbow_joint" type="revolute">
+      <parent link="link1"/><child link="link2"/>
+      <origin xyz="${link1_length} 0 0"/>
+      <axis xyz="0 -1 0"/>
+      <limit lower="${-2.5}" upper="${2.5}" effort="50" velocity="2.0"/>
+      <dynamics damping="0.5" friction="0.1"/>
+    </joint>
+  </xacro:macro>
+</robot>
